@@ -199,6 +199,41 @@ class GenSeaSponge(Operator):
         obj.rotation_euler[0] = math.radians(random.randrange(-self.sea_sponge_props.x_rot, self.sea_sponge_props.x_rot))
         obj.rotation_euler[1] = math.radians(random.randrange(-self.sea_sponge_props.y_rot, self.sea_sponge_props.y_rot))
         obj.rotation_euler[2] = math.radians(random.randrange(self.sea_sponge_props.z_rot))
+        
+    def color_faces(self, obj):
+        mesh = bpy.context.object.data
+        face_color_dict = {}
+        for index, face in enumerate(obj.data.polygons):
+            green = bpy.data.materials.new(f"color_{index}")
+            
+            avg_vert = [0, 0, 0]
+            for vert in face.vertices:
+                avg_vert[0] += obj.data.vertices[vert].co.x
+                avg_vert[1] += obj.data.vertices[vert].co.y
+                avg_vert[2] += obj.data.vertices[vert].co.z
+            
+            avg_vert[0] /= len(face.vertices)
+            avg_vert[1] /= len(face.vertices)
+            avg_vert[2] /= len(face.vertices)
+            avg_vert = mathutils.Vector(avg_vert)
+            
+            dist_to_z = round(get_dist_from_z_axis(avg_vert), 2) / self.sea_sponge_props.radius
+            print(dist_to_z)
+        print(self.sea_sponge_props.radius)
+    #        green.diffuse_color = (0.0, dist_to_z, 0.0, 1)
+    #    
+    #        mesh.materials.append(green)
+    #        face_color_dict[dist_to_z]
+
+            
+    #    bm = bmesh.new()
+    #    bm.from_mesh(mesh)
+    #    for face in bm.faces:
+    ##        for vert in face.verts:
+    ##            print(vert.co)
+    ##        print(face.verts)
+    #        face.material_index = fa
+    #    bm.to_mesh(mesh)
 
     def execute(self, context):
         self.sea_sponge_props = context.scene.sea_sponge_properties
@@ -209,7 +244,7 @@ class GenSeaSponge(Operator):
             
             
 #            self.rotate(obj)
-            color_faces(obj)
+            self.color_faces(obj)
             objs.append(obj)
 
         
@@ -261,38 +296,7 @@ def object_from_data(data, name, scene, select=True):
 
     return obj
 
-def color_faces(obj):
-    mesh = bpy.context.object.data
-    for index, face in enumerate(obj.data.polygons):
-        green = bpy.data.materials.new(f"color_{index}")
-        
-        avg_vert = [0, 0, 0]
-        for vert in face.vertices:
-            avg_vert[0] += obj.data.vertices[vert].co.x
-            avg_vert[1] += obj.data.vertices[vert].co.y
-            avg_vert[2] += obj.data.vertices[vert].co.z
-        
-        avg_vert[0] /= len(face.vertices)
-        avg_vert[1] /= len(face.vertices)
-        avg_vert[2] /= len(face.vertices)
-        avg_vert = mathutils.Vector(avg_vert)
-        
-        dist_to_z = get_dist_from_z_axis(avg_vert)
-        
-        
-        green.diffuse_color = (0.0, dist_to_z / 2, 0.0, 1)
-    
-    
-        mesh.materials.append(green)
-    print(index)
-        
-    bm = bmesh.new()
-    bm.from_mesh(mesh)
-    for index, face in enumerate(bm.faces):
-        print(index)
-        face.material_index = index
-        
-    bm.to_mesh(mesh)
+
 # ------------------------------------------------------------------------------
 
 
