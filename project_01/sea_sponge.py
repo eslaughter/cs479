@@ -274,7 +274,7 @@ class GenSeaSponge(Operator):
             vector_vert = Vector(vert)
 #            perlin_noise = noise.noise_vector(vector_vert)
 #            data["verts"][index] = (vert[0] + perlin_noise.x/bump_reducer, vert[1] + perlin_noise.y/bump_reducer, vert[2] + perlin_noise.z/bump_reducer)
-            turbulence = noise.turbulence_vector(vector_vert, self.sea_sponge_props.turbulence_octaves, True)
+            turbulence = noise.turbulence_vector(vector_vert, self.sea_sponge_props.turbulence_octaves, False)
             new_x = vert[0] + turbulence.x / bump_reducer
             new_y = vert[1] + turbulence.y / bump_reducer
             new_z = vert[2] + turbulence.z / bump_reducer
