@@ -11,8 +11,6 @@ import random
 import sys
 from math import *
 from mathutils import *
-#from mathutils import noise
-
 
 
 class SeaSpongePanel(bpy.types.Panel):
@@ -25,7 +23,6 @@ class SeaSpongePanel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         sea_sponge_props = context.scene.sea_sponge_properties
-        
         row = layout.row()
         col = layout.column(align=True)
         col.prop(sea_sponge_props, 'min_radius')
@@ -41,11 +38,10 @@ class SeaSpongePanel(bpy.types.Panel):
         col.prop(sea_sponge_props, 'bump_max')
         col.prop(sea_sponge_props, 'turbulence_octaves')
         col.prop(sea_sponge_props, 'num_sponges')
-
-        
-        
+        col.prop(sea_sponge_props, 'resolution')
         row = layout.row()
         row.operator('sea.gen_sea_sponge', text='Generate')
+
 
 class SeaSpongeProperties(PropertyGroup):
     min_radius: FloatProperty(
@@ -140,6 +136,13 @@ class SeaSpongeProperties(PropertyGroup):
         min=0.0,
         max=10.0
     )
+    resolution: IntProperty(
+        name='Resolution',
+        description='Number of subdivisions in generating faces/vertices',
+        default=20,
+        min=10,
+        max=50
+    )
 
 class GenSeaSponge(Operator):
     bl_idname = 'sea.gen_sea_sponge'
@@ -148,7 +151,6 @@ class GenSeaSponge(Operator):
 
     def face(self, segments, i, row):
         """ Return a face on a cylinder """
-
         if i == segments - 1:
             ring_start = segments * row
             base = segments * (row + 1)
@@ -169,8 +171,9 @@ class GenSeaSponge(Operator):
 
         return verts
     
+    
     def make_cylinder(self, segments=64, rows=100):
-        """" Make a cylinder """
+        """" Make a plain cylinder """
         
         data = { 'verts': [], 'edges': [], 'faces': [] }
         rows = random.randrange(self.sea_sponge_props.min_height, self.sea_sponge_props.max_height)
@@ -180,19 +183,17 @@ class GenSeaSponge(Operator):
         for i in range(segments):
             for row in range(0, rows - 1):
                 data['faces'].append(self.face(segments, i, row))
-#        print("num faces="+"{}".format(len(data['faces'])))
-#        print("num verts="+"{}".format(len(data['verts'])))
                 
         return data
+    
     
     def make_rotund_cylinder(self):
         """ Make a rotund cylinder """
         
         inner_r = self.sea_sponge_props.radius
-        outer_r = self.sea_sponge_props.rotundness# between 0.4 and 0.8
-#        length = random.randrange(self.sea_sponge_props.min_height, self.sea_sponge_props.max_height)
-        length=1
-        res = 20
+        outer_r = self.sea_sponge_props.rotundness
+        length = random.randrange(self.sea_sponge_props.min_height, self.sea_sponge_props.max_height)
+        res = self.sea_sponge_props.resolution
         
         range_u_min = -pi
         range_u_max = pi
@@ -204,12 +205,12 @@ class GenSeaSponge(Operator):
         range_v_step = 4 * res
         wrap_v = False
         
+        z_shift = log(3*range_v_max)*length*range_v_max
         
         x_eq = "{}*cos({}*v)*cos(u)".format(inner_r, outer_r)
         y_eq = "{}*cos({}*v)*sin(u)".format(inner_r, outer_r)
-        z_eq = "{}*v*log(-v+{})+{}".format(length, 2*range_v_max, length * range_v_max)
+        z_eq = "{0}*v*log((-v)+({1}))+{2}".format(length, 2*range_v_max, z_shift)
 
-        
         a_eq = b_eq = c_eq = d_eq = e_eq = f_eq = g_eq = h_eq = "0"
         n=1
         close_v = False
@@ -220,15 +221,12 @@ class GenSeaSponge(Operator):
             a_eq, b_eq, c_eq, f_eq, g_eq, h_eq, n, close_v)
         data = { 'verts': xyz_surface[0], 'edges': [], 'faces': xyz_surface[1] }
         
-#        print("rotund")
-#        print("num faces="+"{}".format(len(xyz_surface[1])))
-#        print("num verts="+"{}".format(len(xyz_surface[0])))
-        
         return data
+    
     
     def make_sponge(self, name):
         """ Make a sponge """
-#        data = self.make_cylinder()
+
         data = self.make_rotund_cylinder()
         
         bump_reducer = random.uniform(self.sea_sponge_props.bump_min, self.sea_sponge_props.bump_max)
@@ -250,9 +248,9 @@ class GenSeaSponge(Operator):
         return obj
 
     def rotate(self, obj):
-        obj.rotation_euler[0] = math.radians(random.randrange(-self.sea_sponge_props.x_rot, self.sea_sponge_props.x_rot))
-        obj.rotation_euler[1] = math.radians(random.randrange(-self.sea_sponge_props.y_rot, self.sea_sponge_props.y_rot))
-        obj.rotation_euler[2] = math.radians(random.randrange(self.sea_sponge_props.z_rot))
+        obj.rotation_euler[0] = radians(random.randrange(-self.sea_sponge_props.x_rot, self.sea_sponge_props.x_rot))
+        obj.rotation_euler[1] = radians(random.randrange(-self.sea_sponge_props.y_rot, self.sea_sponge_props.y_rot))
+        obj.rotation_euler[2] = radians(random.randrange(self.sea_sponge_props.z_rot))
         
     def color_faces(self, obj):
         mesh = bpy.context.object.data
@@ -269,11 +267,11 @@ class GenSeaSponge(Operator):
             avg_vert[0] /= len(face.vertices)
             avg_vert[1] /= len(face.vertices)
             avg_vert[2] /= len(face.vertices)
-            avg_vert = mathutils.Vector(avg_vert)
+            avg_vert = Vector(avg_vert)
             
             dist_to_z = round(get_dist_from_z_axis(avg_vert), 2) / self.sea_sponge_props.radius
-            print(dist_to_z)
-        print(self.sea_sponge_props.radius)
+#            print(dist_to_z)
+#        print(self.sea_sponge_props.radius)
     #        green.diffuse_color = (0.0, dist_to_z, 0.0, 1)
     #    
     #        mesh.materials.append(green)
@@ -297,7 +295,7 @@ class GenSeaSponge(Operator):
             self.sea_sponge_props.radius = random.uniform(self.sea_sponge_props.min_radius, self.sea_sponge_props.max_radius)
             obj = self.make_sponge(f"sponge_{x}")
             
-#            self.rotate(obj)
+            self.rotate(obj)
             self.color_faces(obj)
             objs.append(obj)
 
@@ -315,13 +313,12 @@ class GenSeaSponge(Operator):
 
 
 
-
-
 # ------------------------------------------------------------------------------
 # Utility Functions
 
 def get_dist_from_z_axis(point):
     return sqrt((point.x ** 2) + (point.y ** 2))
+
 
 def set_smooth(obj):
     """ Enable smooth shading on an mesh object """
@@ -348,7 +345,6 @@ def object_from_data(data, name, scene, select=True):
     return obj
 
 
-
 # List of safe functions for eval()
 safe_list = ['math', 'acos', 'asin', 'atan', 'atan2', 'ceil', 'cos', 'cosh',
     'degrees', 'e', 'exp', 'fabs', 'floor', 'fmod', 'frexp', 'hypot',
@@ -362,6 +358,10 @@ def xyz_function_surface_faces(x_eq, y_eq, z_eq,
     range_u_min, range_u_max, range_u_step, wrap_u,
     range_v_min, range_v_max, range_v_step, wrap_v,
     a_eq, b_eq, c_eq, f_eq, g_eq, h_eq, n, close_v):
+    """ Generate parametrized XYZ surface from built-in Blender extension:
+        https://archive.blender.org/wiki/index.php/Extensions:2.6/Py/Scripts/Add_Mesh/Add_3d_Function_Surface/
+        Returns pair of vertices and faces
+    """
 
     verts = []
     faces = []
