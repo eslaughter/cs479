@@ -178,45 +178,7 @@ class SeaSpongeProperties(PropertyGroup):
 class GenSeaSponge(Operator):
     bl_idname = 'sea.gen_sea_sponge'
     bl_label = 'Generate Sea Sponge'
-    bl_options = {'REGISTER', "UNDO"}
-
-    def face(self, segments, i, row):
-        """ Return a face on a cylinder """
-        if i == segments - 1:
-            ring_start = segments * row
-            base = segments * (row + 1)
-
-            return (base - 1, ring_start, base, (base + segments) - 1)
-        else:
-            base = (segments * row) + i
-            return (base, base + 1, base + segments + 1, base + segments)
-
-    def vertex_circle(self, segments, z):
-        """ Return a ring of vertices """
-        verts = []
-        radius = self.sea_sponge_props.radius
-
-        for i in range(segments):
-            angle = (pi*2) * i / segments
-            verts.append((cos(angle) * radius, sin(angle) * radius, z * radius))
-
-        return verts
-    
-    
-    def make_cylinder(self, segments=64, rows=100):
-        """" Make a plain cylinder """
-        
-        data = { 'verts': [], 'edges': [], 'faces': [] }
-        rows = random.randrange(self.sea_sponge_props.min_height, self.sea_sponge_props.max_height)
-        for z in range(rows):
-            data['verts'].extend(self.vertex_circle(segments, z/10))
-
-        for i in range(segments):
-            for row in range(0, rows - 1):
-                data['faces'].append(self.face(segments, i, row))
-                
-        return data
-    
+    bl_options = {'REGISTER', "UNDO"}    
     
     def make_rotund_cylinder(self):
         """ Make a rotund cylinder """
@@ -283,8 +245,6 @@ class GenSeaSponge(Operator):
         
         
     def get_color_from_dist(self, dist, z):
-
-            
         if dist > 0.75:
             red_scaler = dist / 5
             green_scaler = self.sea_sponge_props.green_channel
@@ -357,7 +317,7 @@ class GenSeaSponge(Operator):
                 face_color_dict[mapped_dist] = mat_count
                 mat_count += 1
 
-            
+#        Adapted from this video https://www.youtube.com/watch?v=Mwap1W-6o7k&t=329s
         bm = bmesh.new()
         bm.from_mesh(mesh)
         for bm_face in bm.faces:
@@ -395,7 +355,7 @@ class GenSeaSponge(Operator):
 # ------------------------------------------------------------------------------
 # Utility Functions
 
-
+# Adapted from this code https://stackoverflow.com/questions/4154969/how-to-map-numbers-in-range-099-to-range-1-01-0/33127793
 def map_range(value, original_range_min, original_range_max, new_range_min, new_range_max):
     return ((value - original_range_min) / (original_range_max - original_range_min)) * (new_range_max-new_range_min) + new_range_min
 
@@ -404,6 +364,7 @@ def get_dist_from_z_axis(point):
 
 def get_distance_from_center(vert, center):
     return sqrt(((center.x - vert.x) ** 2) + ((center.y - vert.y) ** 2))
+
 def find_face_mean_vert(obj, face, is_bm):
     avg_vert = [0, 0, 0]
     if not is_bm:
@@ -428,21 +389,11 @@ def find_face_mean_vert(obj, face, is_bm):
     return avg_vert
 
 
-def set_smooth(obj):
-    """ Enable smooth shading on an mesh object """
-
-    for face in obj.data.polygons:
-        face.use_smooth = True
-
-
 def object_from_data(data, name, scene, select=True):
-    """ Create a mesh object and link it to a scene """
-    
     mesh = bpy.data.meshes.new(name)
     obj = bpy.data.objects.new(name, mesh)
     scene.collection.objects.link(obj)
     bpy.context.view_layer.objects.active = obj
-    obj.color = (random.random(), random.random(), random.random(), 1)
 
 
     mesh.from_pydata(data['verts'], data['edges'], data['faces'])
