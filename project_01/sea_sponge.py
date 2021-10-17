@@ -160,14 +160,6 @@ class SeaSpongeProperties(PropertyGroup):
         min=0.0,
         max=10.0
     )
-
-    dist_to_z_axis: FloatProperty(
-        name='Distance to z-axis',
-        description='Number of sponges you want',
-        default=0.1,
-        min=0.0,
-        max=10.0
-    )
     max_z: FloatProperty(
         name='maximum z',
         description='Number of sponges you want',
@@ -273,19 +265,15 @@ class GenSeaSponge(Operator):
 
             vector_vert = Vector(vert)
 #            perlin_noise = noise.noise_vector(vector_vert)
-#            data["verts"][index] = (vert[0] + perlin_noise.x/bump_reducer, vert[1] + perlin_noise.y/bump_reducer, vert[2] + perlin_noise.z/bump_reducer)
             turbulence = noise.turbulence_vector(vector_vert, self.sea_sponge_props.turbulence_octaves, False)
             new_x = vert[0] + turbulence.x / bump_reducer
             new_y = vert[1] + turbulence.y / bump_reducer
-#            new_z = vert[2] + turbulence.z / bump_reducer
             data["verts"][index] = (new_x, new_y, vert[2])
                 
         scene = bpy.context.scene
         obj = object_from_data(data, name, scene)
         
         
-        
-        self.sea_sponge_props.dist_to_z_axis = get_dist_from_z_axis(Vector(data["verts"][0]))
         return obj
 
     def rotate(self, obj):
