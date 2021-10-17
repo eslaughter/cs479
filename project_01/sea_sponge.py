@@ -2,6 +2,7 @@ import bpy
 import bmesh
 from bpy.props import PointerProperty, IntProperty, FloatProperty
 from bpy.types import Operator, PropertyGroup
+from functools import reduce
 
 import numpy as np
 import random
@@ -39,6 +40,7 @@ class SeaSpongePanel(bpy.types.Panel):
         col.prop(sea_sponge_props, 'bump_max')
         col.prop(sea_sponge_props, 'turbulence_octaves')
         col.prop(sea_sponge_props, 'num_sponges')
+
         
         
         row = layout.row()
@@ -177,15 +179,16 @@ class GenSeaSponge(Operator):
         bump_reducer = random.uniform(self.sea_sponge_props.bump_min, self.sea_sponge_props.bump_max)
         for index, vert in enumerate(data["verts"]):
             vector_vert = mathutils.Vector(vert)
-            perlin_noise = mathutils.noise.noise_vector(vector_vert)
-#            data["verts"][index] = (vert[0] + perlin_noise.x/bump_reducer, vert[1] + perlin_noise.y/bump_reducer, vert[2] + perlin_noise.z/bump_reducer)
-#            turbulence = mathutils.noise.turbulence_vector(vector_vert, self.sea_sponge_props.turbulence_octaves, True)
-            new_x = vert[0] + perlin_noise.x / bump_reducer
-            new_y = vert[1] + perlin_noise.y / bump_reducer
-            new_z = vert[2] + perlin_noise.z / bump_reducer
+            
+#            perlin_noise = mathutils.noise.noise_vector(vector_vert)
+            turbulence = mathutils.noise.turbulence_vector(vector_vert, self.sea_sponge_props.turbulence_octaves, True)
+            
+            new_x = vert[0] + turbulence.x / bump_reducer
+            new_y = vert[1] + turbulence.y / bump_reducer
+            new_z = vert[2] + turbulence.z / bump_reducer
             new_point = mathutils.Vector((new_x, new_y, new_z))
-            if get_dist_from_z_axis(new_point) > get_dist_from_z_axis(vector_vert):
-                data["verts"][index] = (new_x, new_y, new_z)
+            
+            data["verts"][index] = (new_x, new_y, new_z)
                 
         scene = bpy.context.scene
         obj = object_from_data(data, name, scene)
@@ -196,6 +199,41 @@ class GenSeaSponge(Operator):
         obj.rotation_euler[0] = math.radians(random.randrange(-self.sea_sponge_props.x_rot, self.sea_sponge_props.x_rot))
         obj.rotation_euler[1] = math.radians(random.randrange(-self.sea_sponge_props.y_rot, self.sea_sponge_props.y_rot))
         obj.rotation_euler[2] = math.radians(random.randrange(self.sea_sponge_props.z_rot))
+        
+    def color_faces(self, obj):
+        mesh = bpy.context.object.data
+        face_color_dict = {}
+        for index, face in enumerate(obj.data.polygons):
+            green = bpy.data.materials.new(f"color_{index}")
+            
+            avg_vert = [0, 0, 0]
+            for vert in face.vertices:
+                avg_vert[0] += obj.data.vertices[vert].co.x
+                avg_vert[1] += obj.data.vertices[vert].co.y
+                avg_vert[2] += obj.data.vertices[vert].co.z
+            
+            avg_vert[0] /= len(face.vertices)
+            avg_vert[1] /= len(face.vertices)
+            avg_vert[2] /= len(face.vertices)
+            avg_vert = mathutils.Vector(avg_vert)
+            
+            dist_to_z = round(get_dist_from_z_axis(avg_vert), 2) / self.sea_sponge_props.radius
+            print(dist_to_z)
+        print(self.sea_sponge_props.radius)
+    #        green.diffuse_color = (0.0, dist_to_z, 0.0, 1)
+    #    
+    #        mesh.materials.append(green)
+    #        face_color_dict[dist_to_z]
+
+            
+    #    bm = bmesh.new()
+    #    bm.from_mesh(mesh)
+    #    for face in bm.faces:
+    ##        for vert in face.verts:
+    ##            print(vert.co)
+    ##        print(face.verts)
+    #        face.material_index = fa
+    #    bm.to_mesh(mesh)
 
     def execute(self, context):
         self.sea_sponge_props = context.scene.sea_sponge_properties
@@ -206,17 +244,14 @@ class GenSeaSponge(Operator):
             
             
 #            self.rotate(obj)
+            self.color_faces(obj)
             objs.append(obj)
 
         
         scene = bpy.context.scene
 
-        
-#        for ob in scene.objects:
-#            # whatever objects you want to join...
-#            if ob.type == 'MESH':
-#                obs.append(ob)
 
+        # Connect all sponges into one object
         ctx = bpy.context.copy()
         ctx['active_object'] = objs[0]
         ctx['selected_editable_objects'] = objs
@@ -245,17 +280,22 @@ def object_from_data(data, name, scene, select=True):
     """ Create a mesh object and link it to a scene """
 
     mesh = bpy.data.meshes.new(name)
-    mesh.from_pydata(data['verts'], data['edges'], data['faces'])
+    
 
     obj = bpy.data.objects.new(name, mesh)
     scene.collection.objects.link(obj)
 
     bpy.context.view_layer.objects.active = obj
-#    obj.select = True
+    obj.color = (random.random(), random.random(), random.random(), 1)
 
+
+    mesh.from_pydata(data['verts'], data['edges'], data['faces'])
     mesh.validate(verbose=True)
+    
+    mesh.update()
 
     return obj
+
 
 # ------------------------------------------------------------------------------
 
