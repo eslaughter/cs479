@@ -39,6 +39,9 @@ class SeaSpongePanel(bpy.types.Panel):
         col.prop(sea_sponge_props, 'bump_min')
         col.prop(sea_sponge_props, 'bump_max')
         col.prop(sea_sponge_props, 'turbulence_octaves')
+        col.prop(sea_sponge_props, 'red_channel')
+        col.prop(sea_sponge_props, 'green_channel')
+        col.prop(sea_sponge_props, 'blue_channel')
         col.prop(sea_sponge_props, 'num_sponges')
 
         
@@ -125,8 +128,36 @@ class SeaSpongeProperties(PropertyGroup):
         min=0,
         max=100
     )
+    red_channel: FloatProperty(
+        name='Amount of red 0-1',
+        description='Number of sponges you want',
+        default=0.8,
+        min=0.0,
+        max=1.0
+    )
+    green_channel: FloatProperty(
+        name='Amount of green 0-1',
+        description='Number of sponges you want',
+        default=0.8,
+        min=0.0,
+        max=1.0
+    )
+    blue_channel: FloatProperty(
+        name='Amount of blue 0-1',
+        description='Number of sponges you want',
+        default=0.8,
+        min=0.0,
+        max=1.0
+    )
     radius: FloatProperty(
         name='Radius',
+        description='Number of sponges you want',
+        default=0.1,
+        min=0.0,
+        max=10.0
+    )
+    dist_to_z_axis: FloatProperty(
+        name='Distance to z-axis',
         description='Number of sponges you want',
         default=0.1,
         min=0.0,
@@ -193,6 +224,9 @@ class GenSeaSponge(Operator):
         scene = bpy.context.scene
         obj = object_from_data(data, name, scene)
         
+        
+        
+        self.sea_sponge_props.dist_to_z_axis = get_dist_from_z_axis(mathutils.Vector(data["verts"][0]))
         return obj
 
     def rotate(self, obj):
@@ -200,40 +234,64 @@ class GenSeaSponge(Operator):
         obj.rotation_euler[1] = math.radians(random.randrange(-self.sea_sponge_props.y_rot, self.sea_sponge_props.y_rot))
         obj.rotation_euler[2] = math.radians(random.randrange(self.sea_sponge_props.z_rot))
         
+        
+    def get_color_from_dist(self, dist):
+        if dist > 0.75:
+            red_scaler = self.sea_sponge_props.red_channel
+            green_scaler = self.sea_sponge_props.green_channel
+            blue_scaler = self.sea_sponge_props.blue_channel
+        elif dist < 0.25:
+            red_scaler = dist / 5
+            green_scaler = self.sea_sponge_props.green_channel
+            blue_scaler = self.sea_sponge_props.blue_channel
+        else:
+            red_scaler = dist / 5
+            green_scaler = self.sea_sponge_props.blue_channel
+            blue_scaler = dist /5
+            
+#        green_scaler = 1 - green_scaler * dist
+        
+        return (red_scaler, green_scaler, blue_scaler, 1)
+        
     def color_faces(self, obj):
         mesh = bpy.context.object.data
-        face_color_dict = {}
+        max_dist = 0
+        min_dist = 1000000
         for index, face in enumerate(obj.data.polygons):
-            green = bpy.data.materials.new(f"color_{index}")
+            avg_vert = find_face_mean_vert(obj, face, False)
+            dist_to_z = get_dist_from_z_axis(avg_vert)
+            if dist_to_z > max_dist:
+                max_dist = dist_to_z
+            elif dist_to_z < min_dist:
+                min_dist = dist_to_z
+        
+        print(max_dist)
+        print(min_dist)
+        face_color_dict = {}
+        mat_count = 0
+        
+        
+        for face in obj.data.polygons:
             
-            avg_vert = [0, 0, 0]
-            for vert in face.vertices:
-                avg_vert[0] += obj.data.vertices[vert].co.x
-                avg_vert[1] += obj.data.vertices[vert].co.y
-                avg_vert[2] += obj.data.vertices[vert].co.z
+            avg_vert = find_face_mean_vert(obj, face, False)
+            dist_to_z = get_dist_from_z_axis(avg_vert)
+            mapped_dist = round(map_range(dist_to_z, min_dist, max_dist, 0, 1.0), 2)
             
-            avg_vert[0] /= len(face.vertices)
-            avg_vert[1] /= len(face.vertices)
-            avg_vert[2] /= len(face.vertices)
-            avg_vert = mathutils.Vector(avg_vert)
+            if mapped_dist not in face_color_dict:
+                green = bpy.data.materials.new(f"color_{index}")
+                green.diffuse_color = self.get_color_from_dist(mapped_dist)
+                mesh.materials.append(green)
+                face_color_dict[mapped_dist] = mat_count
+                mat_count += 1
             
-            dist_to_z = round(get_dist_from_z_axis(avg_vert), 2) / self.sea_sponge_props.radius
-            print(dist_to_z)
-        print(self.sea_sponge_props.radius)
-    #        green.diffuse_color = (0.0, dist_to_z, 0.0, 1)
-    #    
-    #        mesh.materials.append(green)
-    #        face_color_dict[dist_to_z]
-
-            
-    #    bm = bmesh.new()
-    #    bm.from_mesh(mesh)
-    #    for face in bm.faces:
-    ##        for vert in face.verts:
-    ##            print(vert.co)
-    ##        print(face.verts)
-    #        face.material_index = fa
-    #    bm.to_mesh(mesh)
+        bm = bmesh.new()
+        bm.from_mesh(mesh)
+        for bm_face in bm.faces:
+            avg_vert = find_face_mean_vert(obj, bm_face, True)
+            dist_to_z_axis = get_dist_from_z_axis(avg_vert)
+            bm_mapped_dist = round(map_range(dist_to_z_axis, min_dist, max_dist, 0, 1.0), 2)
+            bm_face.material_index = face_color_dict[bm_mapped_dist]
+        bm.to_mesh(mesh)
 
     def execute(self, context):
         self.sea_sponge_props = context.scene.sea_sponge_properties
@@ -266,8 +324,36 @@ class GenSeaSponge(Operator):
 # ------------------------------------------------------------------------------
 # Utility Functions
 
+
+def map_range(value, original_range_min, original_range_max, new_range_min, new_range_max):
+    return ((value - original_range_min) / (original_range_max - original_range_min)) * (new_range_max-new_range_min) + new_range_min
+
 def get_dist_from_z_axis(point):
     return math.sqrt((point.x ** 2) + (point.y ** 2))
+
+def find_face_mean_vert(obj, face, is_bm):
+    avg_vert = [0, 0, 0]
+    if not is_bm:
+        for vert in face.vertices:
+            avg_vert[0] += obj.data.vertices[vert].co.x
+            avg_vert[1] += obj.data.vertices[vert].co.y
+            avg_vert[2] += obj.data.vertices[vert].co.z
+                
+        avg_vert[0] /= len(face.vertices)
+        avg_vert[1] /= len(face.vertices)
+        avg_vert[2] /= len(face.vertices)
+    else:
+        for vert in face.verts:
+            avg_vert[0] += vert.co.x
+            avg_vert[1] += vert.co.y
+            avg_vert[2] += vert.co.z
+                
+        avg_vert[0] /= len(face.verts)
+        avg_vert[1] /= len(face.verts)
+        avg_vert[2] /= len(face.verts)
+    avg_vert = mathutils.Vector(avg_vert)
+    return avg_vert
+
 
 def set_smooth(obj):
     """ Enable smooth shading on an mesh object """
