@@ -1,16 +1,19 @@
 import bpy
 import bmesh
-from bpy.props import PointerProperty, IntProperty, FloatProperty
+from bpy.props import PointerProperty, IntProperty, FloatProperty, EnumProperty
 from bpy.types import Operator, PropertyGroup
 from functools import reduce
 
 import numpy as np
 import random
 
-
 import sys
 from math import *
 from mathutils import *
+
+
+# ------------------------------------------------------------------------------
+# Sea Sponge Plugin Panel
 
 
 class SeaSpongePanel(bpy.types.Panel):
@@ -25,6 +28,8 @@ class SeaSpongePanel(bpy.types.Panel):
         sea_sponge_props = context.scene.sea_sponge_properties
         row = layout.row()
         col = layout.column(align=True)
+        col.label(text='Geometry:')
+        col.prop(sea_sponge_props, 'num_sponges')
         col.prop(sea_sponge_props, 'min_radius')
         col.prop(sea_sponge_props, 'max_radius')
         col.prop(sea_sponge_props, 'rotundness')
@@ -34,49 +39,54 @@ class SeaSpongePanel(bpy.types.Panel):
         col.prop(sea_sponge_props, 'x_rot')
         col.prop(sea_sponge_props, 'y_rot')
         col.prop(sea_sponge_props, 'z_rot')
-        col.prop(sea_sponge_props, 'bump_min')
-        col.prop(sea_sponge_props, 'bump_max')
-        col.prop(sea_sponge_props, 'turbulence_octaves')
-        col.prop(sea_sponge_props, 'red_channel')
-        col.prop(sea_sponge_props, 'green_channel')
-        col.prop(sea_sponge_props, 'blue_channel')
-        col.prop(sea_sponge_props, 'num_sponges')
         col.prop(sea_sponge_props, 'resolution')
+        col.label(text='Texturing:')
+        col.prop(sea_sponge_props, 'texturing_scheme')
+        if sea_sponge_props.texturing_scheme == 'PERLIN' or sea_sponge_props.texturing_scheme == 'TURBULENCE':
+            col.prop(sea_sponge_props, 'bump_scale')
+        if sea_sponge_props.texturing_scheme == 'TURBULENCE':
+            col.prop(sea_sponge_props, 'turbulence_octaves')
+        col.label(text='Custom Shading:')
+        col.prop(sea_sponge_props, 'shading_scheme')
+        if 'CUSTOM' in sea_sponge_props.shading_scheme:
+            col.prop(sea_sponge_props, 'red_channel')
+            col.prop(sea_sponge_props, 'green_channel')
+            col.prop(sea_sponge_props, 'blue_channel')
         row = layout.row()
         row.operator('sea.gen_sea_sponge', text='Generate')
 
 
 class SeaSpongeProperties(PropertyGroup):
     min_radius: FloatProperty(
-        name='Min Radius',
+        name='Minimum Radius',
         description='Minimum range of radius from Z',
         default=0.5,
         min=0.0,
         max=10.0
     )
     max_radius: FloatProperty(
-        name='Max Radius',
+        name='Maximum Radius',
         description='Maximum range of radius from Z',
         default=0.1,
         min=0.0,
         max=10.0
     )
     rotundness: FloatProperty(
-        name='Rotundness',
+        name='Radial Rotundness',
         description='Degree of radial rotundness',
         default=0.5,
         min=0.25,
         max=0.75
     )
     min_height: FloatProperty(
-        name='Min Height',
+        name='Minimum Height',
         description='Minimum range of sponge length',
         default=1.0,
         min=0.1,
         max=10.0
     )
     max_height: FloatProperty(
-        name='Max Height',
+        name='Maximum Height',
         description='Maximum range of sponge length',
         default=2.0,
         min=0.1,
@@ -103,69 +113,68 @@ class SeaSpongeProperties(PropertyGroup):
         min=0,
         max=360
     )
-    
     num_sponges: IntProperty(
         name='Number of Sponges',
-        description='Number of sponges you want',
+        description='Number of sponges to generate',
         default=20,
         min=0,
         max=1000
     )
-    bump_min: FloatProperty(
-        name='Bump Min',
-        description='Minimum degree of bump',
-        default=5.0,
-        min=0.0,
-        max=100.0
+    shading_scheme: EnumProperty(
+        name='Shading Scheme',
+        description='Presets for shading schemes',
+        items=[
+            ('CUSTOM_MATTE', 'Custom Matte', 'Custom color without depth'),
+            ('CUSTOM_DEPTH', 'Custom Depth', 'Custom color with depth'),
+            ('RUGRATS', 'Rugrats', '90s-style and color scheme')
+        ],
+        default='RUGRATS'
     )
-    bump_max: FloatProperty(
-        name='Bump Max',
-        description='Maximum degree of bump',
-        default=7.0,
-        min=0.0,
-        max=100.0
+    texturing_scheme: EnumProperty(
+        name='Texturing Scheme',
+        description='Method for generating texture',
+        items=[
+            ('NONE', 'Smooth', 'Generate a smooth surface'),
+            ('PERLIN', 'Perlin Noise', 'Use noise to generate bumpiness'),
+            ('TURBULENCE', 'Turbulence', 'Use turbulence to generate bumpiness')
+            
+        ],
+        default='TURBULENCE'
+    )
+    bump_scale: IntProperty(
+        name='Bump Scale',
+        description='Scale of bumpiness 1-10',
+        default=10,
+        min=1,
+        max=10
     )
     turbulence_octaves: IntProperty(
-        name='Turbulence Octaves',
+        name='Bump Frequency',
         description='Number of turbulence octaves',
         default=7,
         min=0,
         max=100
     )
     red_channel: FloatProperty(
-        name='Amount of red 0-1',
-        description='Number of sponges you want',
+        name='Amount of Red 0-1',
+        description='Amount of red 0-1',
         default=0.8,
         min=0.0,
         max=1.0
     )
     green_channel: FloatProperty(
-        name='Amount of green 0-1',
-        description='Number of sponges you want',
+        name='Amount of Green 0-1',
+        description='Amount of green 0-1',
         default=0.8,
         min=0.0,
         max=1.0
     )
     blue_channel: FloatProperty(
-        name='Amount of blue 0-1',
-        description='Number of sponges you want',
+        name='Amount of Blue 0-1',
+        description='Amount of blue 0-1',
         default=0.8,
         min=0.0,
         max=1.0
-    )
-    radius: FloatProperty(
-        name='Radius',
-        description='Number of sponges you want',
-        default=0.1,
-        min=0.0,
-        max=10.0
-    )
-    max_z: FloatProperty(
-        name='maximum z',
-        description='Number of sponges you want',
-        default=0.1,
-        min=0.0,
-        max=100000.0
     )
     resolution: IntProperty(
         name='Resolution',
@@ -174,6 +183,25 @@ class SeaSpongeProperties(PropertyGroup):
         min=10,
         max=1000
     )
+    radius: FloatProperty(
+        name='Radius',
+        description='Store radius',
+        default=0.1,
+        min=0.0,
+        max=10.0
+    )
+    max_z: FloatProperty(
+        name='maximum z',
+        description='Store maximum z',
+        default=0.1,
+        min=0.0,
+        max=100000.0
+    )
+
+
+# ------------------------------------------------------------------------------
+# Sea Sponge Generator Class
+
 
 class GenSeaSponge(Operator):
     bl_idname = 'sea.gen_sea_sponge'
@@ -185,7 +213,7 @@ class GenSeaSponge(Operator):
         
         inner_r = self.sea_sponge_props.radius
         outer_r = self.sea_sponge_props.rotundness
-        length = random.randrange(self.sea_sponge_props.min_height, self.sea_sponge_props.max_height)
+        length = random.uniform(self.sea_sponge_props.min_height, self.sea_sponge_props.max_height)
         res = self.sea_sponge_props.resolution
         
         range_u_min = -pi
@@ -221,22 +249,31 @@ class GenSeaSponge(Operator):
         """ Make a sponge """
 
         data = self.make_rotund_cylinder()
+        texturing_scheme = self.sea_sponge_props.texturing_scheme
         
-        bump_reducer = random.uniform(self.sea_sponge_props.bump_min, self.sea_sponge_props.bump_max)
-        for index, vert in enumerate(data["verts"]):
+        bump_reducer = 1.0 if texturing_scheme == 'SMOOTH' else get_bump_reducer(self.sea_sponge_props.bump_scale)
 
+        for index, vert in enumerate(data["verts"]):
+            # Construct mathutils.Vector
             vector_vert = Vector(vert)
-#            perlin_noise = noise.noise_vector(vector_vert)
-            turbulence = noise.turbulence_vector(vector_vert, self.sea_sponge_props.turbulence_octaves, False)
-            new_x = vert[0] + turbulence.x / bump_reducer
-            new_y = vert[1] + turbulence.y / bump_reducer
+            # Find bump factor based on texturing scheme
+            bump = None
+            if texturing_scheme == 'PERLIN':
+                bump = noise.noise_vector(vector_vert)
+            elif texturing_scheme == 'TURBULENCE':
+                bump = noise.turbulence_vector(vector_vert, self.sea_sponge_props.turbulence_octaves, False)
+            else:
+                bump = Vector((1.0, 1.0))
+            # Apply the bump factor and reducer
+            new_x = vert[0] + bump.x / bump_reducer
+            new_y = vert[1] + bump.y / bump_reducer
             data["verts"][index] = (new_x, new_y, vert[2])
                 
         scene = bpy.context.scene
         obj = object_from_data(data, name, scene)
         
-        
         return obj
+    
 
     def rotate(self, obj):
         obj.rotation_euler[0] = radians(random.randrange(-self.sea_sponge_props.x_rot, self.sea_sponge_props.x_rot))
@@ -244,53 +281,76 @@ class GenSeaSponge(Operator):
         obj.rotation_euler[2] = radians(random.randrange(self.sea_sponge_props.z_rot))
         
         
-    def get_color_from_dist(self, dist, z):
-        if dist > 0.75:
-            red_scaler = dist / 5
-            green_scaler = self.sea_sponge_props.green_channel
-            blue_scaler = dist / 5
-        elif dist < 0.25:
-            red_scaler = self.sea_sponge_props.red_channel
-            green_scaler = dist / 5
-            blue_scaler = dist / 5
-            
-        else:
-            red_scaler = dist / 5
-            green_scaler = dist / 5
-            blue_scaler = self.sea_sponge_props.blue_channel
-        
-        return (red_scaler, green_scaler, blue_scaler, 1)
-        
-    def color_faces(self, obj):
+    def color_faces_matte(self, obj):
         mesh = bpy.context.object.data
+        
+        r = self.sea_sponge_props.red_channel
+        g = self.sea_sponge_props.green_channel
+        b = self.sea_sponge_props.blue_channel
+        
+        color = bpy.data.materials.new(f"color")
+        color.diffuse_color = (r, g, b, 1)
+        mesh.materials.append(color)
+        print(mesh.materials[0])
+            
+        # Create the mesh
+        # Adapted from this video https://www.youtube.com/watch?v=Mwap1W-6o7k&t=329s
+        bm = bmesh.new()
+        bm.from_mesh(mesh)
+        for bm_face in bm.faces:
+            bm_face.material_index = 0
+        bm.to_mesh(mesh)
+        
+        
+    def get_color_from_dist(self, dist, z):
+        if self.sea_sponge_props.shading_scheme == 'CUSTOM_DEPTH':
+            red_scalar = 1-((1-self.sea_sponge_props.red_channel) * (1-dist))
+            green_scalar = 1-((1-self.sea_sponge_props.green_channel) * (1-dist))
+            blue_scalar = 1-((1-self.sea_sponge_props.blue_channel) * (1-dist))
+        elif self.sea_sponge_props.shading_scheme == 'RUGRATS':
+            if dist > 0.75:
+                red_scalar = dist / 5
+                green_scalar = 1.0
+                blue_scalar = dist / 5
+            elif dist < 0.25:
+                red_scalar = 1.0
+                green_scalar = dist / 5
+                blue_scalar = dist / 5
+            else:
+                red_scalar = dist / 5
+                green_scalar = dist / 5
+                blue_scalar = 1.0
+        return (red_scalar, green_scalar, blue_scalar, 1)
+        
+        
+    def color_faces_by_dist(self, obj):
+        mesh = bpy.context.object.data
+        
         max_z = 0
         grouped_by_z = {}
+        # Construct dictionary of faces' average vertices, keyed on z-value
         for index, face in enumerate(obj.data.polygons):
             avg_vert = find_face_mean_vert(obj, face, False)
+            # Save maximum z seen
             if avg_vert.z > max_z:
                 max_z = avg_vert.z
-
             if avg_vert.z in grouped_by_z:
                 grouped_by_z[avg_vert.z].append(avg_vert)
             else:
                 grouped_by_z[avg_vert.z] = [avg_vert]
-                
         self.sea_sponge_props.max_z = max_z
-        face_color_dict = {}
-        mat_count = 0
         
-#        Find center at each z level
+        # Construct dictionary of local centers of vertices at each z level, keyed on z-value
         z_centers = {}
         for z in grouped_by_z:
             n = len(grouped_by_z[z])
             center = Vector((0, 0, 0))
             for vert in grouped_by_z[z]:
                 center = center + vert
-            
             center = Vector((center.x / n, center.y / n, center.z /n))
             z_centers[z] = center
             
-#        Find min and max dist from center at each z level
+        # Construct dictionary of min and max distances from centers at each z level, keyed on z-value
         z_center_dist_max_mins = {}
         for z in grouped_by_z:
             max_dist = 0
@@ -303,8 +363,9 @@ class GenSeaSponge(Operator):
                     min_dist = dist
             z_center_dist_max_mins[z] = (min_dist, max_dist)
             
-            
-            
+        # Construct a dictionary of colors, keyed on distance from relative center
+        face_color_dict = {}
+        mat_count = 0
         for index, face in enumerate(obj.data.polygons):
             avg_vert = find_face_mean_vert(obj, face, False)
             dist_to_center = get_distance_from_center(avg_vert, z_centers[avg_vert.z])
@@ -317,7 +378,8 @@ class GenSeaSponge(Operator):
                 face_color_dict[mapped_dist] = mat_count
                 mat_count += 1
 
-#        Adapted from this video https://www.youtube.com/watch?v=Mwap1W-6o7k&t=329s
+        # Create the mesh
+        # Adapted from this video https://www.youtube.com/watch?v=Mwap1W-6o7k&t=329s
         bm = bmesh.new()
         bm.from_mesh(mesh)
         for bm_face in bm.faces:
@@ -326,6 +388,14 @@ class GenSeaSponge(Operator):
             bm_mapped_dist = round(map_range(dist_to_center, z_center_dist_max_mins[avg_vert.z][0], z_center_dist_max_mins[avg_vert.z][1], 0, 1.0), 2)
             bm_face.material_index = face_color_dict[bm_mapped_dist]
         bm.to_mesh(mesh)
+
+
+    def color_faces(self, obj):
+        shading_scheme = self.sea_sponge_props.shading_scheme
+        if shading_scheme == 'CUSTOM_MATTE':
+            self.color_faces_matte(obj)
+        else:
+            self.color_faces_by_dist(obj)
 
 
     def execute(self, context):
@@ -337,11 +407,9 @@ class GenSeaSponge(Operator):
             self.color_faces(obj)
             self.rotate(obj)
             objs.append(obj)
-
         
         scene = bpy.context.scene
-
-
+        
         # Connect all sponges into one object
         ctx = bpy.context.copy()
         ctx['active_object'] = objs[0]
@@ -355,15 +423,23 @@ class GenSeaSponge(Operator):
 # ------------------------------------------------------------------------------
 # Utility Functions
 
+def get_bump_reducer(n):
+    min = (10-n)*10+5
+    max = (10-n)*10+15
+    return random.uniform(min, max)
+
 # Adapted from this code https://stackoverflow.com/questions/4154969/how-to-map-numbers-in-range-099-to-range-1-01-0/33127793
 def map_range(value, original_range_min, original_range_max, new_range_min, new_range_max):
     return ((value - original_range_min) / (original_range_max - original_range_min)) * (new_range_max-new_range_min) + new_range_min
 
+
 def get_dist_from_z_axis(point):
     return sqrt((point.x ** 2) + (point.y ** 2))
 
+
 def get_distance_from_center(vert, center):
     return sqrt(((center.x - vert.x) ** 2) + ((center.y - vert.y) ** 2))
+
 
 def find_face_mean_vert(obj, face, is_bm):
     avg_vert = [0, 0, 0]
@@ -418,7 +494,7 @@ def xyz_function_surface_faces(x_eq, y_eq, z_eq,
     range_v_min, range_v_max, range_v_step, wrap_v,
     a_eq, b_eq, c_eq, f_eq, g_eq, h_eq, n, close_v):
     """ Generate parametrized XYZ surface from built-in Blender extension:
-        https://archive.blender.org/wiki/index.php/Extensions:2.6/Py/Scripts/Add_Mesh/Add_3d_Function_Surface/
+    https://archive.blender.org/wiki/index.php/Extensions:2.6/Py/Scripts/Add_Mesh/Add_3d_Function_Surface/
         Returns pair of vertices and faces
     """
 
@@ -566,7 +642,6 @@ def register():
     
     bpy.types.Scene.sea_sponge_properties = PointerProperty(type=SeaSpongeProperties)
     bpy.utils.register_class(SeaSpongePanel)
-   
     
     
 def unregister():
