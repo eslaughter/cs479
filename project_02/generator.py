@@ -41,7 +41,7 @@ class GenSeaSponge(Operator):
         range_v_max = pi/2
         range_v_step = 4 * res
         wrap_v = False
-        
+            
         z_shift = log(3*range_v_max)*length*range_v_max
         
         x_eq = "{}*cos({}*v)*cos(u)".format(inner_r, outer_r)
@@ -74,7 +74,9 @@ class GenSeaSponge(Operator):
             vector_vert = Vector(vert)
             # Find bump factor based on texturing scheme
             bump = None
-            if texturing_scheme == 'PERLIN':
+            if texturing_scheme == 'NONE' or self.sea_sponge_props.species == 'GLASS':
+                bump = Vector((1.0, 1.0))
+            elif texturing_scheme == 'PERLIN':
                 bump = noise.noise_vector(vector_vert)
             elif texturing_scheme == 'TURBULENCE':
                 bump = noise.turbulence_vector(
@@ -136,9 +138,20 @@ class GenSeaSponge(Operator):
         
     def get_color_from_dist(self, dist, z):
         if self.sea_sponge_props.shading_scheme == 'CUSTOM_DEPTH':
-            red_scalar = 1-((1-self.sea_sponge_props.red_channel) * (1-dist))
-            green_scalar = 1-((1-self.sea_sponge_props.green_channel) * (1-dist))
-            blue_scalar = 1-((1-self.sea_sponge_props.blue_channel) * (1-dist))
+#            red_scalar = 1-((1-self.sea_sponge_props.red_channel) * (1-dist))
+#            green_scalar = 1-((1-self.sea_sponge_props.green_channel) * (1-dist))
+#            blue_scalar = 1-((1-self.sea_sponge_props.blue_channel) * (1-dist))
+            
+            max_color = 0.12
+            # invert channels to take care of the inverted colors
+            r_channel = self.sea_sponge_props.red_channel
+            g_channel = self.sea_sponge_props.green_channel
+            b_channel = self.sea_sponge_props.blue_channel
+            # greatest when dist is smallest
+            inv_dist = 1.0-dist
+            red_scalar   = (max_color*inv_dist)+r_channel
+            green_scalar = (max_color*inv_dist)+g_channel
+            blue_scalar  = (max_color*inv_dist)+b_channel
         elif self.sea_sponge_props.shading_scheme == 'RUGRATS':
             if dist > 0.75:
                 red_scalar = dist / 5
@@ -259,14 +272,14 @@ class GenSeaSponge(Operator):
         # create smooth F1 voronoi shader node
         smooth_f1_voronoi_node = material.node_tree.nodes.new('ShaderNodeTexVoronoi')
         smooth_f1_voronoi_node.feature = 'SMOOTH_F1'
-        smooth_f1_voronoi_node.inputs['Scale'].default_value = 20.0 # larger values -> smaller cells
-        smooth_f1_voronoi_node.inputs['Smoothness'].default_value = 0.775 # smaller values -> thinner bones
+        smooth_f1_voronoi_node.inputs['Scale'].default_value = self.sea_sponge_props.glass_cell_scale # larger values -> smaller cells
+        smooth_f1_voronoi_node.inputs['Smoothness'].default_value = self.sea_sponge_props.glass_cell_smoothness # smaller values -> thinner bones
         # randomness (smaller -> square)
 
         # create F1 voronoi shader node
         f1_voronoi_node = material.node_tree.nodes.new('ShaderNodeTexVoronoi')
         f1_voronoi_node.feature = 'F1'
-        f1_voronoi_node.inputs['Scale'].default_value = 20.0 # this should be in sync with smooth_f1
+        f1_voronoi_node.inputs['Scale'].default_value = self.sea_sponge_props.glass_cell_scale # this should be in sync with smooth_f1
         # randomness (smaller -> square)
 
         subtract_node = material.node_tree.nodes.new('ShaderNodeMath')
@@ -296,13 +309,14 @@ class GenSeaSponge(Operator):
         active_obj.active_material = material
 
     def color_faces(self, obj):
-        shading_scheme = self.sea_sponge_props.shading_scheme
-        if shading_scheme == 'CUSTOM_MATTE':
-            self.color_faces_matte(obj)
-        elif shading_scheme == 'GLASS':
+        if self.sea_sponge_props.species == 'GLASS':
             self.color_faces_glass(obj)
         else:
-            self.color_faces_by_dist(obj)
+            shading_scheme = self.sea_sponge_props.shading_scheme
+            if shading_scheme == 'CUSTOM_MATTE':
+                self.color_faces_matte(obj)
+            else:
+                self.color_faces_by_dist(obj)
 
 
     def execute(self, context):

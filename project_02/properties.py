@@ -2,6 +2,16 @@ from bpy.props import IntProperty, FloatProperty, EnumProperty
 from bpy.types import PropertyGroup
 
 class SeaSpongeProperties(PropertyGroup):
+    species: EnumProperty(
+        name='Species',
+        description='Types of sponge form',
+        items=[
+            ('TUBE', 'Tube Sponge', 'Common sponge'),
+            ('GLASS', 'Glass Sponge', 'Deep sea silicon sponge'),
+            ('GROSS', 'Gross Sponge', 'Brittle sponge')
+        ],
+        default='TUBE'
+    )
     min_radius: FloatProperty(
         name='Minimum Radius',
         description='Minimum range of radius from Z',
@@ -164,4 +174,18 @@ class SeaSpongeProperties(PropertyGroup):
         default=0.1,
         min=0.0,
         max=100000.0
+    )
+    glass_cell_scale: FloatProperty(
+        name='Glass Cell Scale',
+        description='Scale of glass cells',
+        default=20.0,
+        min=1.0,
+        max=100.0
+    )
+    glass_cell_smoothness: FloatProperty(
+        name='Glass Cell Smoothness',
+        description='Smoothness of glass cells',
+        default=0.775,
+        min=0.0,
+        max=1.0
     )
