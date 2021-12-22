@@ -82,18 +82,10 @@ class SeaSpongeProperties(PropertyGroup):
         items=[
             ('NONE', 'Smooth', 'Generate a smooth surface'),
             ('PERLIN', 'Perlin Noise', 'Use noise to generate bumpiness'),
-            ('TURBULENCE', 'Turbulence', 'Use turbulence to generate bumpiness'),
-            ('STUCCO', 'Stucco', 'Generate Stucco texture')
+            ('TURBULENCE', 'Turbulence', 'Use turbulence to generate bumpiness')
             
         ],
         default='TURBULENCE'
-    )
-    dnoise_dist: FloatProperty(
-        name='Dnoise Dist',
-        description='DNoise sampling dist',
-        default=0.00001,
-        min=0.0,
-        max=1.0
     )
     bump_scale: IntProperty(
         name='Bump Scale',
@@ -108,20 +100,6 @@ class SeaSpongeProperties(PropertyGroup):
         default=7,
         min=0,
         max=100
-    )
-    turbulence_amplitude: FloatProperty(
-        name='Amplitude',
-        description='Amplitude',
-        default=0.5,
-        min=-100.0,
-        max=10.0
-    )
-    turbulence_frequency: FloatProperty(
-        name='Frequency',
-        description='Frequency',
-        default=0.5,
-        min=-100.0,
-        max=10.0
     )
     red_channel: FloatProperty(
         name='Amount of Red 0-1',

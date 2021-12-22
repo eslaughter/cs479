@@ -77,44 +77,7 @@ class GenSeaSponge(Operator):
             if texturing_scheme == 'PERLIN':
                 bump = noise.noise_vector(vector_vert)
             elif texturing_scheme == 'TURBULENCE':
-                bump = noise.turbulence_vector(
-                    vector_vert,
-                    self.sea_sponge_props.turbulence_octaves,
-                    False,
-                    amplitude_scale=self.sea_sponge_props.turbulence_amplitude,
-                    frequency_scale=self.sea_sponge_props.turbulence_frequency
-                )
-            elif texturing_scheme == 'STUCCO':
-                bump = noise.turbulence_vector(
-                    vector_vert,
-                    self.sea_sponge_props.turbulence_octaves,
-                    False,
-                    amplitude_scale=self.sea_sponge_props.turbulence_amplitude,
-                    frequency_scale=self.sea_sponge_props.turbulence_frequency
-                )
-                h = self.sea_sponge_props.dnoise_dist
-                x1 = bump.x
-                y1 = bump.y
-                
-                x2 = noise.turbulence_vector(
-                    Vector((vector_vert.x + h, vector_vert.y, vector_vert.z)),
-                    self.sea_sponge_props.turbulence_octaves,
-                    False,
-                    amplitude_scale=self.sea_sponge_props.turbulence_amplitude,
-                    frequency_scale=self.sea_sponge_props.turbulence_frequency
-                ).x
-                y2 = noise.turbulence_vector(
-                    Vector((vector_vert.x, vector_vert.y + h, vector_vert.z)),
-                    self.sea_sponge_props.turbulence_octaves,
-                    False,
-                    amplitude_scale=self.sea_sponge_props.turbulence_amplitude,
-                    frequency_scale=self.sea_sponge_props.turbulence_frequency
-                ).y
-                
-                dx = (x2 - x1) / h
-                dy = (y2 - y1) / h
-                dnoise = Vector((dx, dy, 0))
-                bump = dnoise.normalized()
+                bump = noise.turbulence_vector(vector_vert, self.sea_sponge_props.turbulence_octaves, False)
             else:
                 bump = Vector((1.0, 1.0))
             # Apply the bump factor and reducer
