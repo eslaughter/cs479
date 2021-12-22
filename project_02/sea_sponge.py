@@ -30,7 +30,7 @@ def register():
     
     bpy.utils.register_class(SeaSpongePanel)
     bpy.utils.register_class(FishTankPanel)
-    
+
 def unregister():
     for cls in CLASSES:
         bpy.utils.unregister_class(cls)
