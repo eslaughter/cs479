@@ -23,13 +23,12 @@ def register():
     
     bpy.types.Scene.sea_sponge_properties = PointerProperty(type=SeaSpongeProperties)
     bpy.utils.register_class(SeaSpongePanel)
-    
+
 def unregister():
     for cls in CLASSES:
         bpy.utils.unregister_class(cls)
     del bpy.types.Scene.sea_sponge_properties
-    bpy.utils.unregister_class(SeaSpongePanel)
-    
+    bpy.utils.unregister_class(SeaSpongePanel)    
     
 if __name__ == "__main__":
     register()
