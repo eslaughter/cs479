@@ -30,6 +30,15 @@ class SeaSpongePanel(bpy.types.Panel):
             col.prop(sea_sponge_props, 'bump_scale')
         if sea_sponge_props.texturing_scheme == 'TURBULENCE':
             col.prop(sea_sponge_props, 'turbulence_octaves')
+            col.prop(sea_sponge_props, 'turbulence_amplitude')
+            col.prop(sea_sponge_props, 'turbulence_frequency')
+            
+        if sea_sponge_props.texturing_scheme == 'STUCCO':
+            col.prop(sea_sponge_props, 'bump_scale')
+            col.prop(sea_sponge_props, 'turbulence_octaves')
+            col.prop(sea_sponge_props, 'turbulence_amplitude')
+            col.prop(sea_sponge_props, 'turbulence_frequency')
+            col.prop(sea_sponge_props, 'dnoise_dist')
         col.label(text='Custom Shading:')
         col.prop(sea_sponge_props, 'shading_scheme')
         if 'CUSTOM' in sea_sponge_props.shading_scheme:
