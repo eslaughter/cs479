@@ -22,7 +22,7 @@ import utils
 class GenSeaSponge(Operator):
     bl_idname = 'sea.gen_sea_sponge'
     bl_label = 'Generate Sea Sponge'
-    bl_options = {'REGISTER', "UNDO"}    
+    bl_options = {'REGISTER', "UNDO"}
     
     def make_rotund_cylinder(self):
         """ Make a rotund cylinder """
@@ -207,13 +207,7 @@ class GenSeaSponge(Operator):
     
     
     def color_faces_glass(self, obj):
-        # create a test plane
-#        bpy.ops.mesh.primitive_plane_add(location=(15, -5, 5))
         active_obj = bpy.context.active_object
-#        plane.name = 'Voronoi Plane'
-#        plane.scale = mathutils.Vector((4, 4, 4))
-#        # tilt
-#        plane.rotation_euler.rotate_axis('Y', math.radians(40))
 
         # Create a new material
         material = bpy.data.materials.new(name="Voronoi Shader")
